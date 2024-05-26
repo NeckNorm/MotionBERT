@@ -16,9 +16,9 @@ def parse_args():
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=str, default="configs/pose3d/MB_ft_h36m_global_lite.yaml", help="Path to the config file.")
     parser.add_argument('-e', '--evaluate', default='checkpoint/pose3d/FT_MB_lite_MB_ft_h36m_global_lite/best_epoch.bin', type=str, metavar='FILENAME', help='checkpoint to evaluate (file name)')
-    parser.add_argument('-j', '--json_path', type=str, help='alphapose detection result json path')
+    parser.add_argument('-j', '--json_path', default='json_output', type=str, help='alphapose detection result json path')
     parser.add_argument('-v', '--vid_path', type=str, help='video path')
-    parser.add_argument('-o', '--out_path', type=str, help='output path')
+    parser.add_argument('-o', '--out_path', default='output', type=str, help='output path')
     parser.add_argument('--pixel', action='store_true', help='align with pixle coordinates')
     parser.add_argument('--focus', type=int, default=None, help='target person id')
     parser.add_argument('--clip_len', type=int, default=243, help='clip length for network input')
@@ -55,10 +55,10 @@ os.makedirs(opts.out_path, exist_ok=True)
 
 if opts.pixel:
     # Keep relative scale with pixel coornidates
-    wild_dataset = WildDetDataset(opts.json_path, clip_len=opts.clip_len, vid_size=vid_size, scale_range=None, focus=opts.focus)
+    wild_dataset = WildDetDataset(clip_len=opts.clip_len, vid_size=vid_size, scale_range=None, focus=opts.focus)
 else:
     # Scale to [-1,1]
-    wild_dataset = WildDetDataset(opts.json_path, clip_len=opts.clip_len, scale_range=[1,1], focus=opts.focus)
+    wild_dataset = WildDetDataset(clip_len=opts.clip_len, scale_range=[1,1], focus=opts.focus)
 
 test_loader = DataLoader(wild_dataset, **testloader_params)
 
