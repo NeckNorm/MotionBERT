@@ -1,6 +1,5 @@
 import torch
 import numpy as np
-import ipdb
 import glob
 import os
 import io
@@ -14,8 +13,8 @@ from lib.utils.utils_data import crop_scale
 
 def halpe2h36m(x):
     '''
-        Input: x (T x V x C)  
-       //Halpe 26 body keypoints
+    Input: x (T x V x C)  
+    //Halpe 26 body keypoints
     {0,  "Nose"},
     {1,  "LEye"},
     {2,  "REye"},
@@ -33,9 +32,9 @@ def halpe2h36m(x):
     {14, "Rknee"},
     {15, "LAnkle"},
     {16, "RAnkle"},
-    {17,  "Head"},
-    {18,  "Neck"},
-    {19,  "Hip"},
+    {17, "Head"},
+    {18, "Neck"},
+    {19, "Hip"},
     {20, "LBigToe"},
     {21, "RBigToe"},
     {22, "LSmallToe"},
@@ -64,7 +63,7 @@ def halpe2h36m(x):
     y[:,16,:] = x[:,10,:]
     return y
     
-def read_input(json_path, vid_size, scale_range, focus):
+def read_input(json_path, image_size, scale_range, focus):
     with open(json_path, "r") as read_file:
         results = json.load(read_file)
     kpts_all = []
@@ -75,8 +74,8 @@ def read_input(json_path, vid_size, scale_range, focus):
         kpts_all.append(kpts)
     kpts_all = np.array(kpts_all)
     kpts_all = halpe2h36m(kpts_all)
-    if vid_size:
-        w, h = vid_size
+    if image_size:
+        w, h = image_size
         scale = min(w,h) / 2.0
         kpts_all[:,:,:2] = kpts_all[:,:,:2] - np.array([w, h]) / 2.0
         kpts_all[:,:,:2] = kpts_all[:,:,:2] / scale
@@ -85,18 +84,39 @@ def read_input(json_path, vid_size, scale_range, focus):
         motion = crop_scale(kpts_all, scale_range) 
     return motion.astype(np.float32)
 
+
 class WildDetDataset(Dataset):
-    def __init__(self, json_path, clip_len=243, vid_size=None, scale_range=None, focus=None):
-        self.json_path = json_path
+    def __init__(self, clip_len=243, image_size=None, scale_range=None, focus=None):
         self.clip_len = clip_len
-        self.vid_all = read_input(json_path, vid_size, scale_range, focus)
+        self.image_size = image_size
+        self.scale_range = scale_range
+        self.focus = focus
+        self.frames = []  # 실시간 데이터를 저장할 리스트
+    
+    def add_data(self, new_data):
+        kpts_all = np.array(new_data).reshape([-1,26,3])
+        kpts_all = halpe2h36m(kpts_all)
+        if self.image_size:
+            w, h = self.image_size
+            scale = min(w,h) / 2.0
+            kpts_all[:,:,:2] = kpts_all[:,:,:2] - np.array([w, h]) / 2.0
+            kpts_all[:,:,:2] = kpts_all[:,:,:2] / scale
+        if self.scale_range:
+            kpts_all = crop_scale(kpts_all, self.scale_range) 
+        self.frames.append(kpts_all.astype(np.float32))
         
     def __len__(self):
         'Denotes the total number of samples'
-        return math.ceil(len(self.vid_all) / self.clip_len)
+        return len(self.frames)
     
     def __getitem__(self, index):
         'Generates one sample of data'
-        st = index*self.clip_len
-        end = min((index+1)*self.clip_len, len(self.vid_all))
-        return self.vid_all[st:end]
+        start = max(0, index - self.clip_len + 1)
+        return self.frames[start:index+1]
+
+    def get_current_clip(self):
+        'Returns the current clip of frames'
+        start = max(0, len(self.frames) - self.clip_len)
+        end = len(self.frames)
+        return np.array(self.frames[start:end])
+
