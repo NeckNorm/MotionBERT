@@ -3,16 +3,16 @@ import os
 import cv2
 import math
 import copy
-import imageio
+# import imageio
 import io
 from tqdm import tqdm
 from PIL import Image
 from lib.utils.tools import ensure_dir
-import matplotlib
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+# import matplotlib
+# import matplotlib.pyplot as plt
+# from mpl_toolkits.mplot3d import Axes3D
 from lib.utils.utils_smpl import *
-import ipdb
+# import ipdb
 
 def render_and_save(motion_input, save_path, keep_imgs=False, fps=25, color="#F96706#FB8D43#FDB381", with_conf=False, draw_face=False):
     ensure_dir(os.path.dirname(save_path))
@@ -216,7 +216,7 @@ def motion2video(motion, save_path, colors, h=512, w=512, bg_color=(255, 255, 25
     vlen = motion.shape[-1]
 
     out_array = np.zeros([vlen, h, w, 3]) if as_array else None
-    videowriter = None if as_array else imageio.get_writer(save_path, fps=fps)
+    # videowriter = None if as_array else imageio.get_writer(save_path, fps=fps)
 
     if save_frame:
         frames_dir = save_path[:-4] + '-frames'
@@ -236,18 +236,18 @@ def motion2video(motion, save_path, colors, h=512, w=512, bg_color=(255, 255, 25
         if save_frame:
             save_image(img_cropped, os.path.join(frames_dir, "%04d.png" % i))
         if as_array: out_array[i] = img
-        else: videowriter.append_data(img)
+        # else: videowriter.append_data(img)
 
-    if not as_array:
-        videowriter.close()
+    # if not as_array:
+    #     videowriter.close()
 
     return out_array
 
 def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
 #     motion: (17,3,N)
-    videowriter = imageio.get_writer(save_path, fps=fps)
+    # videowriter = imageio.get_writer(save_path, fps=fps)
     vlen = motion.shape[-1]
-    save_name = save_path.split('.')[0]
+    # save_name = save_path.split('.')[0]
     frames = []
     joint_pairs = [[0, 1], [1, 2], [2, 3], [0, 4], [4, 5], [5, 6], [0, 7], [7, 8], [8, 9], [8, 11], [8, 14], [9, 10], [11, 12], [12, 13], [14, 15], [15, 16]]
     joint_pairs_left = [[8, 11], [11, 12], [12, 13], [0, 4], [4, 5], [5, 6]]
@@ -280,9 +280,9 @@ def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
                 ax.plot(-xs, -zs, -ys, color=color_mid, lw=3, marker='o', markerfacecolor='w', markersize=3, markeredgewidth=2) # axis transformation for visualization
             
         frame_vis = get_img_from_fig(fig)
-        videowriter.append_data(frame_vis)
-        plt.close()
-    videowriter.close()
+        # videowriter.append_data(frame_vis)
+        plt.show()
+    # videowriter.close()
 
 def motion2video_mesh(motion, save_path, fps=25, keep_imgs = False, draw_face=True):
     videowriter = imageio.get_writer(save_path, fps=fps)
