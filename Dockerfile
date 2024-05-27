@@ -43,6 +43,10 @@ RUN echo "source activate alphapose" > ~/.bashrc && \
     conda install -c bottler nvidiacub && \
     pip install 'git+https://github.com/facebookresearch/pytorch3d.git@stable'"
 
+# Install Flask and other Python packages
+RUN /bin/bash -c "source activate alphapose && \
+    pip install flask flask_socketio pyyaml easydict"
+
 # Set the working directory to the AlphaPose directory (this will be the mount point)
 WORKDIR /AlphaPose
 
