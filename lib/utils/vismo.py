@@ -3,15 +3,17 @@ import os
 import cv2
 import math
 import copy
-# import imageio
+import imageio
+os.environ["IMAGEIO_FFMPEG_EXE"] = "/opt/homebrew/bin/ffmpeg"
 import io
 from tqdm import tqdm
 from PIL import Image
-from lib.utils.tools import ensure_dir
-# import matplotlib
-# import matplotlib.pyplot as plt
-# from mpl_toolkits.mplot3d import Axes3D
-from lib.utils.utils_smpl import *
+# from lib.utils.tools import ensure_dir
+import matplotlib
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
+import torch
+# from lib.utils.utils_smpl import *
 # import ipdb
 
 def render_and_save(motion_input, save_path, keep_imgs=False, fps=25, color="#F96706#FB8D43#FDB381", with_conf=False, draw_face=False):
@@ -62,14 +64,24 @@ def vis_data_batch(data_input, data_label, n_render=10, save_path='doodle/vis_tr
         render_and_save(data_input[i][:,:,:2], '%s/input_%d.mp4' % (save_path, i))
         render_and_save(data_label[i], '%s/gt_%d.mp4' % (save_path, i))
 
-def get_img_from_fig(fig, dpi=120):
+def get_img_from_fig(fig, orig_img, dpi=120):
     buf = io.BytesIO()
     fig.savefig(buf, format="png", dpi=dpi, bbox_inches="tight", pad_inches=0)
     buf.seek(0)
     img_arr = np.frombuffer(buf.getvalue(), dtype=np.uint8)
     buf.close()
-    img = cv2.imdecode(img_arr, 1)
+    img_arr = cv2.imdecode(img_arr, 1)
+
+    h,w = img_arr.shape[:2]
+    oh, ow = orig_img.shape[:2]
+    ratio = h/oh
+
+    resized_img = cv2.resize(orig_img, (int(ow*ratio), h))
+    # print(img_arr.shape, resized_img.shape)
+
+    img = np.concatenate([img_arr, resized_img], axis=1)
     img = cv2.cvtColor(img, cv2.COLOR_BGR2RGBA)
+    img = cv2.resize(img, (1080, 720))
     return img
 
 def rgb2rgba(color):
@@ -243,11 +255,21 @@ def motion2video(motion, save_path, colors, h=512, w=512, bg_color=(255, 255, 25
 
     return out_array
 
-def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
+def motion2video_3d(
+    orig_imges,
+    motion, 
+    scores, 
+    save_path, 
+    elivation, 
+    angle, 
+    keypoints_threshold=0.7, 
+    fps=25, 
+    keep_imgs = False
+):
 #     motion: (17,3,N)
-    # videowriter = imageio.get_writer(save_path, fps=fps)
+    videowriter = imageio.get_writer(save_path, fps=fps)
     vlen = motion.shape[-1]
-    # save_name = save_path.split('.')[0]
+    save_name = save_path.split('.')[0]
     frames = []
     joint_pairs = [[0, 1], [1, 2], [2, 3], [0, 4], [4, 5], [5, 6], [0, 7], [7, 8], [8, 9], [8, 11], [8, 14], [9, 10], [11, 12], [12, 13], [14, 15], [15, 16]]
     joint_pairs_left = [[8, 11], [11, 12], [12, 13], [0, 4], [4, 5], [5, 6]]
@@ -266,10 +288,12 @@ def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
         # ax.set_xlabel('X')
         # ax.set_ylabel('Y')
         # ax.set_zlabel('Z')
-        ax.view_init(elev=12., azim=80)
+        ax.view_init(elev=elivation, azim=angle)
         plt.tick_params(left = False, right = False , labelleft = False ,
                         labelbottom = False, bottom = False)
         for i in range(len(joint_pairs)):
+            if scores[f][i] < keypoints_threshold:
+                continue
             limb = joint_pairs[i]
             xs, ys, zs = [np.array([j3d[limb[0], j], j3d[limb[1], j]]) for j in range(3)]
             if joint_pairs[i] in joint_pairs_left:
@@ -279,10 +303,10 @@ def motion2video_3d(motion, save_path, fps=25, keep_imgs = False):
             else:
                 ax.plot(-xs, -zs, -ys, color=color_mid, lw=3, marker='o', markerfacecolor='w', markersize=3, markeredgewidth=2) # axis transformation for visualization
             
-        frame_vis = get_img_from_fig(fig)
-        # videowriter.append_data(frame_vis)
-        plt.show()
-    # videowriter.close()
+        frame_vis = get_img_from_fig(fig, orig_imges[f])
+        videowriter.append_data(frame_vis)
+        plt.close()
+    videowriter.close()
 
 def motion2video_mesh(motion, save_path, fps=25, keep_imgs = False, draw_face=True):
     videowriter = imageio.get_writer(save_path, fps=fps)

@@ -3,7 +3,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from functools import partial
-from lib.model.DSTformer import DSTformer
+from MotionBERT.lib.model.DSTformer import DSTformer
 
 class AverageMeter(object):
     """Computes and stores the average and current value"""
